@@ -1,0 +1,7 @@
+streamlit
+torch
+pandas
+matplotlib
+numpy
+requests
+Pillow
