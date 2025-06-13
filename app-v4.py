@@ -84,53 +84,54 @@ if uploaded_zip:
         )
 
         selected = grid_response['selected_rows']
-        if selected:
-            selected_filename = selected[0]['filename']
+        if selected and isinstance(selected, list) and len(selected) > 0:
+            selected_filename = selected[0].get('filename')
 
-            st.subheader("📁 선택한 .pt 파일 상세 정보")
-            folder_id = st.text_input("📂 Google Drive 공유 폴더 ID (processed_segments)", "")
+            if selected_filename:
+                st.subheader("📁 선택한 .pt 파일 상세 정보")
+                folder_id = st.text_input("📂 Google Drive 공유 폴더 ID (processed_segments)", "")
 
-            def build_gdrive_download_url(folder_id, filename):
-                return f"https://drive.google.com/uc?export=download&id={folder_id}&filename={filename}"
+                def build_gdrive_download_url(folder_id, filename):
+                    return f"https://drive.google.com/uc?export=download&id={folder_id}&filename={filename}"
 
-            if folder_id:
-                gdrive_url = f"https://drive.google.com/uc?export=download&id={folder_id}&confirm=t"
-                try:
-                    with st.spinner("📥 .pt 파일 로딩 중..."):
-                        response = requests.get(gdrive_url)
-                        pt_data = torch.load(BytesIO(response.content), map_location="cpu")
+                if folder_id:
+                    gdrive_url = f"https://drive.google.com/uc?export=download&id={folder_id}&confirm=t"
+                    try:
+                        with st.spinner("📥 .pt 파일 로딩 중..."):
+                            response = requests.get(gdrive_url)
+                            pt_data = torch.load(BytesIO(response.content), map_location="cpu")
 
-                        # 이미지 텐서 확인 및 시각화
-                        img_tensor = pt_data.get("image_tensor")
-                        if img_tensor is not None:
-                            img_np = img_tensor.permute(1, 2, 0).detach().cpu().numpy()
-                            st.write("📊 image_tensor value range:", img_np.min(), "~", img_np.max())
-                            if img_np.max() <= 1.0:
-                                img_np = (img_np * 255).astype(np.uint8)
+                            # 이미지 텐서 확인 및 시각화
+                            img_tensor = pt_data.get("image_tensor")
+                            if img_tensor is not None:
+                                img_np = img_tensor.permute(1, 2, 0).detach().cpu().numpy()
+                                st.write("📊 image_tensor value range:", img_np.min(), "~", img_np.max())
+                                if img_np.max() <= 1.0:
+                                    img_np = (img_np * 255).astype(np.uint8)
+                                else:
+                                    img_np = img_np.astype(np.uint8)
+                                st.image(img_np, caption="📸 image_tensor preview")
                             else:
-                                img_np = img_np.astype(np.uint8)
-                            st.image(img_np, caption="📸 image_tensor preview")
-                        else:
-                            st.info("ℹ️ image_tensor 없음")
+                                st.info("ℹ️ image_tensor 없음")
 
-                        # 시퀀스 데이터
-                        hand_seq = pt_data.get("hand_sequence")
-                        if hand_seq is not None:
-                            st.subheader("✋ Hand Sequence")
-                            df_hand = pd.DataFrame(hand_seq.numpy())
-                            st.line_chart(df_hand.iloc[:, :5])
-                        else:
-                            st.info("ℹ️ hand_sequence 없음")
+                            # 시퀀스 데이터
+                            hand_seq = pt_data.get("hand_sequence")
+                            if hand_seq is not None:
+                                st.subheader("✋ Hand Sequence")
+                                df_hand = pd.DataFrame(hand_seq.numpy())
+                                st.line_chart(df_hand.iloc[:, :5])
+                            else:
+                                st.info("ℹ️ hand_sequence 없음")
 
-                        pneu_seq = pt_data.get("pneumatic_sequence")
-                        if pneu_seq is not None:
-                            st.subheader("🔧 Pneumatic Sequence")
-                            df_pneu = pd.DataFrame(pneu_seq.numpy())
-                            st.line_chart(df_pneu.iloc[:, :5])
-                        else:
-                            st.info("ℹ️ pneumatic_sequence 없음")
-                except Exception as e:
-                    st.error(f"❌ .pt 파일 로딩 실패: {e}")
+                            pneu_seq = pt_data.get("pneumatic_sequence")
+                            if pneu_seq is not None:
+                                st.subheader("🔧 Pneumatic Sequence")
+                                df_pneu = pd.DataFrame(pneu_seq.numpy())
+                                st.line_chart(df_pneu.iloc[:, :5])
+                            else:
+                                st.info("ℹ️ pneumatic_sequence 없음")
+                    except Exception as e:
+                        st.error(f"❌ .pt 파일 로딩 실패: {e}")
 
         # CSV 다운로드
         csv_data = filtered_df.to_csv(index=False).encode('utf-8')
