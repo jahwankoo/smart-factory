@@ -102,7 +102,17 @@ if uploaded_zip:
                     # 이미지 미리보기
                     img_tensor = pt_data.get("image_tensor")
                     if img_tensor is not None:
-                        img_np = img_tensor.permute(1, 2, 0).numpy().astype(np.uint8)
+                        img_np = img_tensor.permute(1, 2, 0).detach().cpu().numpy()
+
+                        # 값의 범위 확인
+                        st.write("📊 image_tensor value range:", img_np.min(), "~", img_np.max())
+
+                        # float 타입이면 0~1 범위라고 가정하고 255로 변환
+                        if img_np.max() <= 1.0:
+                            img_np = (img_np * 255).astype(np.uint8)
+                        else:
+                            img_np = img_np.astype(np.uint8)
+
                         st.image(img_np, caption="📸 image_tensor preview")
                     else:
                         st.info("ℹ️ image_tensor 없음")
