@@ -1,7 +1,8 @@
 streamlit
-torch
 pandas
-matplotlib
 numpy
-requests
+torch
+matplotlib
 Pillow
+requests
+streamlit-aggrid
