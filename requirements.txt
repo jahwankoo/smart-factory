@@ -5,3 +5,5 @@ torch
 Pillow
 requests
 streamlit-aggrid
+google-api-python-client
+google-auth
