@@ -7,3 +7,6 @@ Pillow
 google-api-python-client
 google-auth
 google-auth-oauthlib
+
+# torch cpu 전용 index
+-f https://download.pytorch.org/whl/torch_stable.html
