@@ -102,17 +102,18 @@ if uploaded_json:
             selected = grid_response.get('selected_rows', [])
             
             # --- 선택된 파일 처리 ---
+            # --- 선택된 파일 처리 (수정된 버전) ---
             if selected:
                 selected_row = selected[0]
                 file_id = selected_row.get('gdrive_file_id')
 
                 # 이전에 선택한 파일과 다를 경우에만 새로 다운로드
-                if file_id != st.session_state.last_selected_id:
+                if file_id != st.session_state.get('last_selected_id'):
                     st.session_state.pt_data = download_and_load_pt(file_id)
                     st.session_state.last_selected_id = file_id
                 
                 # --- 상세 정보 표시 ---
-                if st.session_state.pt_data:
+                if st.session_state.get('pt_data'):
                     st.subheader(f"📁 상세 정보: {selected_row.get('filename')}")
                     
                     pt_data = st.session_state.pt_data
@@ -120,8 +121,8 @@ if uploaded_json:
                     # 이미지 텐서 시각화
                     img_tensor = pt_data.get("image_tensor")
                     if img_tensor is not None:
+                        # ... (이 부분은 이전과 동일) ...
                         img_np = img_tensor.permute(1, 2, 0).detach().cpu().numpy()
-                        # 정규화된 이미지(0~1)와 일반 이미지(0~255) 모두 처리
                         if img_np.max() <= 1.0:
                             img_np = (img_np * 255).astype(np.uint8)
                         else:
@@ -130,21 +131,33 @@ if uploaded_json:
                     else:
                         st.info("ℹ️ image_tensor가 파일에 없습니다.")
                         
-                    # Hand Sequence 시각화
+                    # Hand Sequence 시각화 (오류 방지 코드 추가)
                     hand_seq = pt_data.get("hand_sequence")
-                    if hand_seq is not None:
-                        st.subheader("✋ Hand Sequence (앞 5개 데이터)")
+                    if hand_seq is not None and hasattr(hand_seq, 'numpy'):
+                        st.subheader("✋ Hand Sequence")
                         df_hand = pd.DataFrame(hand_seq.numpy())
-                        st.line_chart(df_hand.iloc[:, :5])
+                        # 데이터프레임의 실제 열 개수를 확인하여 슬라이싱
+                        cols_to_plot = min(df_hand.shape[1], 5) 
+                        if cols_to_plot > 0:
+                            st.caption(f"(데이터의 앞 {cols_to_plot}개 열을 표시합니다)")
+                            st.line_chart(df_hand.iloc[:, :cols_to_plot])
+                        else:
+                            st.info("ℹ️ Hand sequence 데이터가 비어있습니다.")
                     else:
                         st.info("ℹ️ hand_sequence가 파일에 없습니다.")
 
-                    # Pneumatic Sequence 시각화
+                    # Pneumatic Sequence 시각화 (오류 방지 코드 추가)
                     pneu_seq = pt_data.get("pneumatic_sequence")
-                    if pneu_seq is not None:
-                        st.subheader("🔧 Pneumatic Sequence (앞 5개 데이터)")
+                    if pneu_seq is not None and hasattr(pneu_seq, 'numpy'):
+                        st.subheader("🔧 Pneumatic Sequence")
                         df_pneu = pd.DataFrame(pneu_seq.numpy())
-                        st.line_chart(df_pneu.iloc[:, :5])
+                        # 데이터프레임의 실제 열 개수를 확인하여 슬라이싱
+                        cols_to_plot = min(df_pneu.shape[1], 5)
+                        if cols_to_plot > 0:
+                            st.caption(f"(데이터의 앞 {cols_to_plot}개 열을 표시합니다)")
+                            st.line_chart(df_pneu.iloc[:, :cols_to_plot])
+                        else:
+                            st.info("ℹ️ Pneumatic sequence 데이터가 비어있습니다.")
                     else:
                         st.info("ℹ️ pneumatic_sequence가 파일에 없습니다.")
             else:
