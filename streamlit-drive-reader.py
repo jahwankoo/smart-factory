@@ -27,13 +27,21 @@ if uploaded_json and folder_id:
 
         st.info("📡 Google Drive에서 .pt 파일 목록 불러오는 중...")
 
-        results = service.files().list(
-            q=f"'{folder_id}' in parents and mimeType != 'application/vnd.google-apps.folder'",
-            fields="files(id, name)",
-            pageSize=1000
-        ).execute()
+        files = []
+        page_token = None
 
-        files = results.get('files', [])
+        while True:
+            response = service.files().list(
+                q=f"'{folder_id}' in parents and mimeType != 'application/vnd.google-apps.folder'",
+                fields="nextPageToken, files(id, name)",
+                pageSize=1000,
+                pageToken=page_token
+            ).execute()
+            files.extend(response.get('files', []))
+            page_token = response.get('nextPageToken', None)
+            if page_token is None:
+                break
+
         pt_files = [(f['name'], f['id']) for f in files if f['name'].endswith('.pt')]
 
         if not pt_files:
