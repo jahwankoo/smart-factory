@@ -1,10 +1,9 @@
-streamlit
+streamlit>=1.32
 pandas
 numpy
-torch
-Pillow
+torch==2.1.0+cpu
 st-aggrid
+Pillow
 google-api-python-client
 google-auth
 google-auth-oauthlib
-google-auth-httplib2
