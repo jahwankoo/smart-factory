@@ -1,7 +1,6 @@
 streamlit>=1.32
 pandas
 numpy
-st-aggrid
 Pillow
 google-api-python-client
 google-auth
