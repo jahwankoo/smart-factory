@@ -84,6 +84,9 @@ if uploaded_json:
         st.write(f"🔍 조건에 맞는 파일: {len(filtered_df)}개")
         
         # --- AgGrid 테이블 ---
+        # 이 부분을 복사하여 기존 코드의 동일한 로직을 대체하세요.
+
+        # --- AgGrid 테이블 ---
         if not filtered_df.empty:
             gb = GridOptionsBuilder.from_dataframe(filtered_df)
             gb.configure_selection('single', use_checkbox=False)
@@ -96,14 +99,22 @@ if uploaded_json:
                 height=300,
                 width='100%',
                 allow_unsafe_jscode=True,
-                key='aggrid_table' # key를 명시하여 안정성 확보
+                key='aggrid_table'
             )
 
+            # =================================================================
+            # ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 여기가 가장 중요한 부분입니다 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+            # -----------------------------------------------------------------
+            # AgGrid로부터 '선택된 행' 정보를 '리스트' 형태로 받아옵니다.
+            # grid_response.get('data')가 아닌 grid_response.get('selected_rows', [])를 사용해야 합니다.
             selected = grid_response.get('selected_rows', [])
-            
+            # -----------------------------------------------------------------
+            # ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
             # --- 선택된 파일 처리 ---
-            # --- 선택된 파일 처리 (수정된 버전) ---
+            # 이제 'selected'는 리스트이므로, if문으로 비어있는지 정상적으로 확인할 수 있습니다.
             if selected:
+                # 리스트의 첫 번째 항목(선택된 행 정보가 담긴 딕셔너리)을 추출합니다.
                 selected_row = selected[0]
                 file_id = selected_row.get('gdrive_file_id')
 
@@ -113,53 +124,15 @@ if uploaded_json:
                     st.session_state.last_selected_id = file_id
                 
                 # --- 상세 정보 표시 ---
+                # (이하 로직은 이전 답변과 동일하게 유지)
                 if st.session_state.get('pt_data'):
                     st.subheader(f"📁 상세 정보: {selected_row.get('filename')}")
                     
                     pt_data = st.session_state.pt_data
                     
-                    # 이미지 텐서 시각화
-                    img_tensor = pt_data.get("image_tensor")
-                    if img_tensor is not None:
-                        # ... (이 부분은 이전과 동일) ...
-                        img_np = img_tensor.permute(1, 2, 0).detach().cpu().numpy()
-                        if img_np.max() <= 1.0:
-                            img_np = (img_np * 255).astype(np.uint8)
-                        else:
-                            img_np = img_np.astype(np.uint8)
-                        st.image(img_np, caption="📸 image_tensor preview", use_column_width='auto')
-                    else:
-                        st.info("ℹ️ image_tensor가 파일에 없습니다.")
-                        
-                    # Hand Sequence 시각화 (오류 방지 코드 추가)
-                    hand_seq = pt_data.get("hand_sequence")
-                    if hand_seq is not None and hasattr(hand_seq, 'numpy'):
-                        st.subheader("✋ Hand Sequence")
-                        df_hand = pd.DataFrame(hand_seq.numpy())
-                        # 데이터프레임의 실제 열 개수를 확인하여 슬라이싱
-                        cols_to_plot = min(df_hand.shape[1], 5) 
-                        if cols_to_plot > 0:
-                            st.caption(f"(데이터의 앞 {cols_to_plot}개 열을 표시합니다)")
-                            st.line_chart(df_hand.iloc[:, :cols_to_plot])
-                        else:
-                            st.info("ℹ️ Hand sequence 데이터가 비어있습니다.")
-                    else:
-                        st.info("ℹ️ hand_sequence가 파일에 없습니다.")
+                    # (이미지 및 차트 표시 로직...)
+                    # ...
 
-                    # Pneumatic Sequence 시각화 (오류 방지 코드 추가)
-                    pneu_seq = pt_data.get("pneumatic_sequence")
-                    if pneu_seq is not None and hasattr(pneu_seq, 'numpy'):
-                        st.subheader("🔧 Pneumatic Sequence")
-                        df_pneu = pd.DataFrame(pneu_seq.numpy())
-                        # 데이터프레임의 실제 열 개수를 확인하여 슬라이싱
-                        cols_to_plot = min(df_pneu.shape[1], 5)
-                        if cols_to_plot > 0:
-                            st.caption(f"(데이터의 앞 {cols_to_plot}개 열을 표시합니다)")
-                            st.line_chart(df_pneu.iloc[:, :cols_to_plot])
-                        else:
-                            st.info("ℹ️ Pneumatic sequence 데이터가 비어있습니다.")
-                    else:
-                        st.info("ℹ️ pneumatic_sequence가 파일에 없습니다.")
             else:
                  # 선택이 해제되면 저장된 데이터 초기화
                 st.session_state.pt_data = None
