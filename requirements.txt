@@ -1,12 +1,10 @@
 streamlit>=1.32
 pandas
 numpy
-torch==2.1.0+cpu
 st-aggrid
 Pillow
 google-api-python-client
 google-auth
 google-auth-oauthlib
-
-# torch cpu 전용 index
--f https://download.pytorch.org/whl/torch_stable.html
+torch==2.0.1
+--extra-index-url https://download.pytorch.org/whl/cpu
