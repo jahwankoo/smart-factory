@@ -60,11 +60,13 @@ if uploaded_json:
             filename = selected_row.get('filename')
             file_id = selected_row.get('gdrive_file_id')
 
-            if filename and file_id:
-                st.subheader("📁 선택한 .pt 파일 상세 정보")
-                st.write("🧾 파일명:", filename)
-                st.write("🔑 GDrive File ID:", file_id)
+            st.subheader("📁 선택한 .pt 파일 상세 정보")
+            st.write("🧾 파일명:", filename)
+            st.write("🔑 GDrive File ID (raw):", file_id)
 
+            if not file_id:
+                st.error("❌ gdrive_file_id가 메타데이터에 없습니다. JSON을 확인하세요.")
+            else:
                 download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
                 st.write("📎 다운로드 URL:", download_url)
 
