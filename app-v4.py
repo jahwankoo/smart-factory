@@ -68,9 +68,10 @@ if uploaded_json:
                 st.write("📎 다운로드 URL:", download_url)
 
                 try:
-                    with st.spinner("📥 .pt 파일 다운로드 및 로딩 중..."):
-                        response = requests.get(download_url)
-                        st.write(f"📡 응답 상태 코드: {response.status_code}")
+                    response = requests.get(download_url)
+                    st.write(f"📡 응답 상태 코드: {response.status_code}")
+
+                    with st.spinner("📥 .pt 파일 로딩 중..."):
                         if response.status_code != 200:
                             st.error("❌ 다운로드 실패 또는 권한 오류")
                         else:
