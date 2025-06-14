@@ -83,8 +83,8 @@ if uploaded_zip:
             allow_unsafe_jscode=True,
         )
 
-        selected = grid_response['selected_rows']
-        if selected and isinstance(selected, list) and len(selected) > 0:
+        selected = grid_response.get('selected_rows', [])
+        if isinstance(selected, list) and len(selected) > 0:
             selected_filename = selected[0].get('filename')
 
             if selected_filename:
