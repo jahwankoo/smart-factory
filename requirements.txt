@@ -5,5 +5,5 @@ Pillow
 google-api-python-client
 google-auth
 google-auth-oauthlib
-torch==2.0.1
+torch==2.2.0
 --extra-index-url https://download.pytorch.org/whl/cpu
