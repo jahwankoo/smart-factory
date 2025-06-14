@@ -8,8 +8,33 @@ import requests
 from io import BytesIO
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseDownload
+import io
+
 st.set_page_config(page_title="PT 파일 메타데이터 뷰어", layout="wide")
-st.title("📁 GDrive 기반 .pt 메타데이터 시각화")
+st.title("📁 GDrive 기반 .pt 메타데이터 시각화 (API 방식)")
+
+# ✅ GDrive API 다운로드 함수
+def download_file_from_gdrive(service_account_json, file_id):
+    credentials = service_account.Credentials.from_service_account_info(service_account_json)
+    drive_service = build('drive', 'v3', credentials=credentials)
+
+    request = drive_service.files().get_media(fileId=file_id)
+    fh = io.BytesIO()
+    downloader = MediaIoBaseDownload(fh, request)
+
+    done = False
+    while done is False:
+        status, done = downloader.next_chunk()
+
+    fh.seek(0)
+    return fh.read()  # 바이트 반환
+
+# ✅ 서비스 계정 JSON 업로드
+st.sidebar.subheader("🔐 GDrive API 인증")
+service_account_file = st.sidebar.file_uploader("Google Service Account JSON 업로드", type="json")
 
 uploaded_json = st.file_uploader("📥 메타데이터 JSON 파일 업로드 (final_metadata_with_gdrive_ids.json)", type="json")
 
@@ -40,7 +65,6 @@ if uploaded_json:
 
     if not filtered_df.empty:
         gb = GridOptionsBuilder.from_dataframe(filtered_df)
-        # 클릭만으로 선택 가능하도록 use_checkbox를 False로 설정
         gb.configure_selection('single', use_checkbox=True)
         grid_options = gb.build()
         grid_response = AgGrid(
@@ -62,59 +86,50 @@ if uploaded_json:
 
             st.subheader("📁 선택한 .pt 파일 상세 정보")
             st.write("🧾 파일명:", filename)
-            st.write("🔑 GDrive File ID (raw):", file_id)
+            st.write("🔑 GDrive File ID:", file_id)
 
             if not file_id:
-                st.error("❌ gdrive_file_id가 메타데이터에 없습니다. JSON을 확인하세요.")
+                st.error("❌ gdrive_file_id가 없습니다.")
+            elif not service_account_file:
+                st.warning("⚠️ GDrive API를 사용하려면 서비스 계정 JSON을 업로드하세요.")
             else:
-                download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
-                st.write("📎 다운로드 URL:", download_url)
-
                 try:
-                    # URL 호출 및 응답 코드 즉시 표시
-                    response = requests.get(download_url)
-                    st.write(f"📡 응답 상태 코드: {response.status_code}")
+                    service_account_json = json.load(service_account_file)
+                    with st.spinner("🔄 GDrive API로 .pt 파일 다운로드 중..."):
+                        content = download_file_from_gdrive(service_account_json, file_id)
+                        pt_data = torch.load(BytesIO(content), map_location="cpu")
+                        st.success("✅ .pt 파일 로딩 성공!")
 
-                    if response.status_code != 200:
-                        st.error("❌ 다운로드 실패 또는 권한 오류")
-                    else:
-                        with st.spinner("📥 .pt 파일 로딩 중..."):
-                            try:
-                                pt_data = torch.load(BytesIO(response.content), map_location="cpu")
-                                st.success("✅ .pt 파일 로딩 성공!")
+                        img_tensor = pt_data.get("image_tensor")
+                        if img_tensor is not None:
+                            img_np = img_tensor.permute(1, 2, 0).detach().cpu().numpy()
+                            if img_np.max() <= 1.0:
+                                img_np = (img_np * 255).astype(np.uint8)
+                            else:
+                                img_np = img_np.astype(np.uint8)
+                            st.image(img_np, caption="📸 image_tensor preview", use_column_width=True)
+                        else:
+                            st.info("ℹ️ image_tensor 없음")
 
-                                img_tensor = pt_data.get("image_tensor")
-                                if img_tensor is not None:
-                                    img_np = img_tensor.permute(1, 2, 0).detach().cpu().numpy()
-                                    if img_np.max() <= 1.0:
-                                        img_np = (img_np * 255).astype(np.uint8)
-                                    else:
-                                        img_np = img_np.astype(np.uint8)
-                                    st.image(img_np, caption="📸 image_tensor preview", use_column_width=True)
-                                else:
-                                    st.info("ℹ️ image_tensor 없음")
+                        hand_seq = pt_data.get("hand_sequence")
+                        if hand_seq is not None:
+                            st.subheader("✋ Hand Sequence")
+                            df_hand = pd.DataFrame(hand_seq.numpy())
+                            st.line_chart(df_hand.iloc[:, :5])
+                        else:
+                            st.info("ℹ️ hand_sequence 없음")
 
-                                hand_seq = pt_data.get("hand_sequence")
-                                if hand_seq is not None:
-                                    st.subheader("✋ Hand Sequence")
-                                    df_hand = pd.DataFrame(hand_seq.numpy())
-                                    st.line_chart(df_hand.iloc[:, :5])
-                                else:
-                                    st.info("ℹ️ hand_sequence 없음")
-
-                                pneu_seq = pt_data.get("pneumatic_sequence")
-                                if pneu_seq is not None:
-                                    st.subheader("🔧 Pneumatic Sequence")
-                                    df_pneu = pd.DataFrame(pneu_seq.numpy())
-                                    st.line_chart(df_pneu.iloc[:, :5])
-                                else:
-                                    st.info("ℹ️ pneumatic_sequence 없음")
-                            except Exception as e:
-                                st.error(f"❌ torch.load 오류: {e}")
+                        pneu_seq = pt_data.get("pneumatic_sequence")
+                        if pneu_seq is not None:
+                            st.subheader("🔧 Pneumatic Sequence")
+                            df_pneu = pd.DataFrame(pneu_seq.numpy())
+                            st.line_chart(df_pneu.iloc[:, :5])
+                        else:
+                            st.info("ℹ️ pneumatic_sequence 없음")
 
                 except Exception as e:
-                    st.error(f"❌ 다운로드 요청 실패: {e}")
+                    st.error(f"❌ 다운로드 또는 파싱 오류: {e}")
 
-        # CSV 다운로드
-        csv_data = filtered_df.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 필터 결과 CSV 다운로드", data=csv_data, file_name="filtered_metadata.csv", mime="text/csv")
+    # ✅ CSV 다운로드
+    csv_data = filtered_df.to_csv(index=False).encode('utf-8')
+    st.download_button("📥 필터 결과 CSV 다운로드", data=csv_data, file_name="filtered_metadata.csv", mime="text/csv")
