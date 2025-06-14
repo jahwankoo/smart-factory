@@ -40,7 +40,8 @@ if uploaded_json:
 
     if not filtered_df.empty:
         gb = GridOptionsBuilder.from_dataframe(filtered_df)
-        gb.configure_selection('single', use_checkbox=True)
+        # 클릭만으로 선택 가능하도록 use_checkbox를 False로 설정
+        gb.configure_selection('single', use_checkbox=False)
         grid_options = gb.build()
         grid_response = AgGrid(
             filtered_df,
@@ -54,7 +55,7 @@ if uploaded_json:
         selected = grid_response.get('selected_rows', [])
         st.write("🔎 선택된 항목:", selected)
 
-        if isinstance(selected, list) and len(selected) > 0:
+        if isinstance(selected, list) and selected:
             selected_row = selected[0]
             filename = selected_row.get('filename')
             file_id = selected_row.get('gdrive_file_id')
@@ -68,9 +69,9 @@ if uploaded_json:
                 st.write("📎 다운로드 URL:", download_url)
 
                 try:
-                    st.info("📡 Google Drive에서 응답 대기 중...")
+                    # URL 호출 및 응답 코드 즉시 표시
                     response = requests.get(download_url)
-                    st.success(f"📡 응답 상태 코드: {response.status_code}")
+                    st.write(f"📡 응답 상태 코드: {response.status_code}")
 
                     if response.status_code != 200:
                         st.error("❌ 다운로드 실패 또는 권한 오류")
@@ -112,5 +113,6 @@ if uploaded_json:
                 except Exception as e:
                     st.error(f"❌ 다운로드 요청 실패: {e}")
 
+        # CSV 다운로드
         csv_data = filtered_df.to_csv(index=False).encode('utf-8')
         st.download_button("📥 필터 결과 CSV 다운로드", data=csv_data, file_name="filtered_metadata.csv", mime="text/csv")
