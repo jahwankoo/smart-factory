@@ -1,11 +1,7 @@
-# Streamlit Cloud (CPU-only environment) PyTorch installation
---extra-index-url https://download.pytorch.org/whl/cpu
-
-# Core libraries
 streamlit
 pandas
 numpy
-Pillow
 torch
-gdown
+Pillow
+requests
 streamlit-aggrid
