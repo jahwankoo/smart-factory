@@ -40,7 +40,7 @@ if uploaded_json:
 
     if not filtered_df.empty:
         gb = GridOptionsBuilder.from_dataframe(filtered_df)
-        gb.configure_selection('single')
+        gb.configure_selection('single', use_checkbox=True)
         grid_options = gb.build()
         grid_response = AgGrid(
             filtered_df,
@@ -52,6 +52,8 @@ if uploaded_json:
         )
 
         selected = grid_response.get('selected_rows', [])
+        st.write("🔎 선택된 항목:", selected)
+
         if isinstance(selected, list) and len(selected) > 0:
             selected_row = selected[0]
             filename = selected_row.get('filename')
@@ -63,45 +65,50 @@ if uploaded_json:
                 st.write("🔑 GDrive File ID:", file_id)
 
                 download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+                st.write("📎 다운로드 URL:", download_url)
 
                 try:
                     with st.spinner("📥 .pt 파일 다운로드 및 로딩 중..."):
                         response = requests.get(download_url)
+                        st.write(f"📡 응답 상태 코드: {response.status_code}")
                         if response.status_code != 200:
                             st.error("❌ 다운로드 실패 또는 권한 오류")
                         else:
-                            pt_data = torch.load(BytesIO(response.content), map_location="cpu")
-                            st.success("✅ .pt 파일 로딩 성공!")
+                            try:
+                                pt_data = torch.load(BytesIO(response.content), map_location="cpu")
+                                st.success("✅ .pt 파일 로딩 성공!")
 
-                            img_tensor = pt_data.get("image_tensor")
-                            if img_tensor is not None:
-                                img_np = img_tensor.permute(1, 2, 0).detach().cpu().numpy()
-                                if img_np.max() <= 1.0:
-                                    img_np = (img_np * 255).astype(np.uint8)
+                                img_tensor = pt_data.get("image_tensor")
+                                if img_tensor is not None:
+                                    img_np = img_tensor.permute(1, 2, 0).detach().cpu().numpy()
+                                    if img_np.max() <= 1.0:
+                                        img_np = (img_np * 255).astype(np.uint8)
+                                    else:
+                                        img_np = img_np.astype(np.uint8)
+                                    st.image(img_np, caption="📸 image_tensor preview", use_column_width=True)
                                 else:
-                                    img_np = img_np.astype(np.uint8)
-                                st.image(img_np, caption="📸 image_tensor preview", use_column_width=True)
-                            else:
-                                st.info("ℹ️ image_tensor 없음")
+                                    st.info("ℹ️ image_tensor 없음")
 
-                            hand_seq = pt_data.get("hand_sequence")
-                            if hand_seq is not None:
-                                st.subheader("✋ Hand Sequence")
-                                df_hand = pd.DataFrame(hand_seq.numpy())
-                                st.line_chart(df_hand.iloc[:, :5])
-                            else:
-                                st.info("ℹ️ hand_sequence 없음")
+                                hand_seq = pt_data.get("hand_sequence")
+                                if hand_seq is not None:
+                                    st.subheader("✋ Hand Sequence")
+                                    df_hand = pd.DataFrame(hand_seq.numpy())
+                                    st.line_chart(df_hand.iloc[:, :5])
+                                else:
+                                    st.info("ℹ️ hand_sequence 없음")
 
-                            pneu_seq = pt_data.get("pneumatic_sequence")
-                            if pneu_seq is not None:
-                                st.subheader("🔧 Pneumatic Sequence")
-                                df_pneu = pd.DataFrame(pneu_seq.numpy())
-                                st.line_chart(df_pneu.iloc[:, :5])
-                            else:
-                                st.info("ℹ️ pneumatic_sequence 없음")
+                                pneu_seq = pt_data.get("pneumatic_sequence")
+                                if pneu_seq is not None:
+                                    st.subheader("🔧 Pneumatic Sequence")
+                                    df_pneu = pd.DataFrame(pneu_seq.numpy())
+                                    st.line_chart(df_pneu.iloc[:, :5])
+                                else:
+                                    st.info("ℹ️ pneumatic_sequence 없음")
+                            except Exception as e:
+                                st.error(f"❌ torch.load 오류: {e}")
 
                 except Exception as e:
-                    st.error(f"❌ torch.load 또는 요청 오류: {e}")
+                    st.error(f"❌ 다운로드 요청 실패: {e}")
 
         csv_data = filtered_df.to_csv(index=False).encode('utf-8')
         st.download_button("📥 필터 결과 CSV 다운로드", data=csv_data, file_name="filtered_metadata.csv", mime="text/csv")
